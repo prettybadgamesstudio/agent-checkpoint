@@ -1,0 +1,580 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Agent Checkpoint: a Papers, Please-style setup guide for installing OpenCode, running a free AI model and adding art tools.">
+<title>Agent Checkpoint</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jersey+10&family=VT323&display=swap">
+<style>
+/* Layout: an inspection booth. Street band on top, rulebook on the left, desk with the applicant's
+   document and two stamps on the right; each day ends on a black end-of-day report screen. */
+:root {
+  color-scheme: dark;
+  --street: #8e8e8c; --street-d: #6f6f6d; --haz-d: #454544; --haz-l: #b9b9b5;
+  --plate: #3a2e2c; --plate-l: #56443f; --plate-d: #231b19;
+  --desk: #2a2321; --desk-d: #1d1716; --wall: #3a2b29;
+  --paper: #ece8d5; --paper-d: #d6d1ba; --page: #e2e6c5; --page-d: #cbd0ac;
+  --ink: #33302a; --ink-soft: #6b6358;
+  --counter: #86967a; --counter-d: #5f6e55;
+  --red: #b8352a; --red-l: #d9584a; --green: #4f7a3a; --green-l: #86b45e; --gold: #d2ae3e; --pink: #e7c3cf;
+  --black: #060606; --rplate: #5e6e5f; --rline: #6a6a6a; --rtext: #e8e8e6; --rgrey: #9a9a98;
+  --f-head: "Jersey 10", "Courier New", monospace;
+  --f-body: "VT323", "Courier New", monospace;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--desk-d); color: var(--paper); font-family: var(--f-body); font-size: 20px; line-height: 1.15; }
+button { font: inherit; cursor: pointer; }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+a { color: inherit; }
+code, pre { font-family: var(--f-body); }
+.wrap { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+
+/* street band */
+.street {
+  background:
+    repeating-linear-gradient(0deg, transparent 0 34px, rgba(255,255,255,.12) 34px 36px),
+    repeating-linear-gradient(90deg, var(--street) 0 6px, var(--street-d) 6px 7px);
+  padding-block: 12px; border-bottom: 6px solid var(--plate-d);
+}
+.street .wrap { display: flex; gap: 14px; align-items: stretch; flex-wrap: wrap; }
+.sign { flex: 1 1 420px; min-width: 0; background: var(--plate); border: 3px solid var(--plate-d); box-shadow: inset 3px 3px 0 var(--plate-l); padding: 10px 16px; }
+.sign .kicker { color: var(--gold); font-size: 18px; letter-spacing: 2px; }
+.sign h1 { margin: 0; font-family: var(--f-head); font-weight: 400; font-size: clamp(34px, 6vw, 52px); line-height: .95; color: var(--paper); text-wrap: balance; }
+.sign .sub { color: #b9afa0; font-size: 19px; }
+.hazard { width: 56px; flex: 0 0 auto; background: repeating-linear-gradient(0deg, var(--haz-d) 0 8px, var(--haz-l) 8px 16px); border: 3px solid var(--plate-d); }
+.tally { display: grid; gap: 6px; align-content: center; flex: 0 1 220px; }
+.chip { background: var(--plate); border: 3px solid var(--plate-d); padding: 4px 10px; display: flex; justify-content: space-between; gap: 10px; font-size: 20px; }
+.chip b { font-family: var(--f-head); font-weight: 400; font-size: 26px; line-height: 1; }
+.chip.good b { color: var(--green-l); } .chip.bad b { color: var(--red-l); }
+
+/* days strip */
+.days { display: flex; gap: 6px; flex-wrap: wrap; padding-block: 10px; }
+.day-tab { background: var(--plate-d); color: #b9afa0; border: 2px solid var(--plate-l); padding: 4px 12px; font-size: 19px; }
+.day-tab[aria-current="true"] { background: var(--paper); color: var(--ink); border-color: var(--paper); }
+.day-tab .ok { color: var(--green-l); }
+
+/* main booth grid */
+.booth { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 18px; padding-block: 6px 28px; }
+@media (max-width: 860px) { .booth { grid-template-columns: minmax(0, 1fr); } .desk-col { order: -1; } }
+
+/* rulebook (spiral binder) */
+.rulebook { background: var(--plate-d); padding: 10px; border: 3px solid #120e0d; position: relative; }
+.rulebook::before { content: ""; position: absolute; top: -6px; right: 22px; width: 14px; height: 30px; background: #6b2c1d; }
+.rb-tabs { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 8px; }
+.rb-tab { background: var(--page-d); color: var(--ink); border: 0; padding: 3px 10px; font-size: 18px; }
+.rb-tab[aria-selected="true"] { background: var(--page); box-shadow: inset 0 -3px 0 var(--red); }
+.page { background: var(--page); color: var(--ink); padding: 14px 16px 18px;
+  background-image: repeating-linear-gradient(180deg, transparent 0 25px, rgba(0,0,0,.06) 25px 26px);
+  border-left: 10px solid; border-image: repeating-linear-gradient(180deg, #9d9d95 0 6px, #5d5d57 6px 8px, transparent 8px 12px) 10; }
+.page h2 { margin: 0 0 4px; font-family: var(--f-head); font-weight: 400; font-size: 30px; color: var(--ink); letter-spacing: 1px; }
+.page h3 { margin: 12px 0 2px; font-family: var(--f-head); font-weight: 400; font-size: 22px; color: var(--red); letter-spacing: 1px; }
+.page p, .page li { margin: 4px 0; max-width: 62ch; }
+.page ul, .page ol { padding-left: 22px; margin: 4px 0; }
+.page a { color: #2c5a1f; }
+.cmd { display: flex; align-items: stretch; gap: 0; margin: 6px 0; min-width: 0; }
+.cmd code { flex: 1; min-width: 0; background: #1e1b18; color: #dfe8c9; padding: 6px 10px; overflow-x: auto; white-space: pre; font-size: 19px; }
+.cmd .os { flex: 0 0 auto; background: var(--counter-d); color: var(--paper); padding: 6px 8px; font-size: 16px; display: flex; align-items: center; }
+.copy { flex: 0 0 auto; border: 0; background: var(--gold); color: #231b19; padding: 0 10px; font-size: 17px; }
+.copy.done { background: var(--green-l); }
+pre.json { background: #1e1b18; color: #dfe8c9; padding: 10px; overflow-x: auto; font-size: 17px; line-height: 1.15; margin: 6px 0; }
+.dls { display: flex; gap: 8px; flex-wrap: wrap; margin: 6px 0; }
+.dl { display: grid; background: #1e1b18; color: #dfe8c9; text-decoration: none; padding: 6px 12px; border: 3px solid #1e1b18; box-shadow: inset 2px 2px 0 #4b4540; min-width: 150px; }
+.dl b { font-family: var(--f-head); font-weight: 400; font-size: 24px; color: var(--paper); letter-spacing: 1px; }
+.dl span { font-size: 16px; color: #b9afa0; }
+.dl:hover { border-color: var(--gold); }
+.ask { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; margin: 6px 0; background: #1e1b18; }
+.ask .os { background: var(--green); color: var(--paper); padding: 6px 8px; font-size: 15px; display: flex; align-items: center; }
+.ask p { margin: 0; padding: 6px 10px; color: #dfe8c9; font-size: 18px; }
+@media (max-width: 520px) { .ask { grid-template-columns: minmax(0, 1fr); } }
+.note { background: var(--pink); color: var(--ink); padding: 6px 10px; margin: 8px 0; border: 2px solid #c9a0b0; }
+
+/* desk */
+.desk-col { display: grid; gap: 14px; align-content: start; min-width: 0; }
+.window { background: var(--wall); border: 3px solid #120e0d; padding: 10px; display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 12px; align-items: center;
+  background-image: repeating-linear-gradient(180deg, transparent 0 17px, rgba(255,255,255,.06) 17px 18px); }
+.window canvas { width: 96px; height: 96px; image-rendering: pixelated; background: #4b3835; border: 3px solid #120e0d; }
+.speech { background: var(--paper); color: var(--ink); padding: 8px 12px; position: relative; font-size: 21px; }
+.speech::before { content: ""; position: absolute; left: -10px; top: 18px; border: 6px solid transparent; border-right-color: var(--paper); border-width: 6px 10px 6px 0; }
+.speech .who { color: var(--ink-soft); font-size: 17px; }
+.doc { background: var(--paper); color: var(--ink); border: 3px solid #3b3431; box-shadow: 6px 6px 0 #120e0d; padding: 14px 16px; position: relative; min-height: 180px; }
+.doc .doc-head { display: flex; justify-content: space-between; gap: 8px; border-bottom: 2px dotted var(--paper-d); padding-bottom: 4px; margin-bottom: 8px; }
+.doc .doc-head span:first-child { font-family: var(--f-head); font-size: 24px; letter-spacing: 1px; }
+.doc .doc-head span:last-child { color: var(--ink-soft); }
+.doc .claim { font-size: 22px; }
+.doc pre { background: #1e1b18; color: #dfe8c9; padding: 8px 10px; white-space: pre-wrap; word-break: break-word; font-size: 19px; margin: 8px 0 0; }
+.stamp-mark { position: absolute; right: 14px; bottom: 12px; font-family: var(--f-head); font-size: 40px; padding: 0 12px; border: 5px solid; transform: rotate(-8deg); opacity: .9; pointer-events: none; }
+.stamp-mark.app { color: var(--green); border-color: var(--green); }
+.stamp-mark.den { color: var(--red); border-color: var(--red); }
+.counter { background: var(--counter); border-top: 6px solid #a6b496; padding: 12px; display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+.stamp { border: 0; padding: 10px 22px 12px; font-family: var(--f-head); font-size: 30px; letter-spacing: 1px; color: var(--paper); box-shadow: inset -4px -4px 0 rgba(0,0,0,.3), inset 4px 4px 0 rgba(255,255,255,.18), 4px 4px 0 #1d1716; min-width: 160px; }
+.stamp.app { background: var(--green); } .stamp.den { background: var(--red); }
+.stamp:disabled { filter: grayscale(.7) brightness(.7); cursor: default; }
+.stamp:active:not(:disabled) { transform: translate(2px, 2px); box-shadow: inset -4px -4px 0 rgba(0,0,0,.3), 2px 2px 0 #1d1716; }
+.slip { padding: 10px 14px; border: 2px solid; font-size: 20px; }
+.slip.cite { background: var(--pink); color: var(--ink); border-color: #c9a0b0; }
+.slip.ok { background: #d9e4c6; color: var(--ink); border-color: #9fb08a; }
+.slip strong { font-family: var(--f-head); font-weight: 400; font-size: 24px; letter-spacing: 1px; display: block; }
+.next { background: var(--plate); color: var(--paper); border: 3px solid var(--plate-d); padding: 6px 14px; font-size: 20px; justify-self: end; }
+.queue { color: #b9afa0; font-size: 18px; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.queue i { display: inline-block; width: 10px; height: 18px; background: #555; }
+.queue i.done { background: var(--green-l); } .queue i.miss { background: var(--red-l); } .queue i.now { background: var(--gold); }
+
+/* prompt builder */
+.form { display: grid; gap: 8px; }
+.form label { display: grid; gap: 2px; font-size: 18px; }
+.form input, .form select, .form textarea { font: inherit; font-size: 19px; background: #f6f3e4; color: var(--ink); border: 2px solid #3b3431; padding: 4px 8px; width: 100%; }
+.form textarea { min-height: 60px; resize: vertical; }
+#promptOut { white-space: pre-wrap; }
+
+/* end-of-day report */
+.report { position: fixed; inset: 0; background: var(--black); color: var(--rtext); overflow-y: auto; z-index: 20;
+  padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+.report .inner { max-width: 880px; margin: 0 auto; padding-block: 28px 40px; display: grid; gap: 18px; }
+.plate-row { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 10px; }
+.plate-row::before, .plate-row::after { content: ""; height: 3px; background: var(--rline); }
+.plate { background: var(--rplate); color: #141a15; font-family: var(--f-head); font-size: clamp(30px, 6vw, 46px); padding: 2px 34px; clip-path: polygon(14px 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 14px 100%, 0 50%); text-align: center; }
+.endof { text-align: center; color: var(--rgrey); letter-spacing: 3px; font-size: 18px; margin-bottom: -10px; }
+.report p.lead { text-align: center; margin: 0 auto; max-width: 56ch; font-size: 21px; }
+.ledger { display: grid; gap: 4px; max-width: 620px; width: 100%; margin: 0 auto; font-size: 24px; }
+.ledger div { display: flex; justify-content: space-between; gap: 12px; font-family: var(--f-head); font-size: 30px; letter-spacing: 1px; }
+.ledger .neg { color: var(--red-l); }
+.ledger .tot { border-top: 3px dotted var(--rtext); padding-top: 4px; }
+.badges { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+.badge { display: grid; justify-items: center; gap: 2px; color: var(--rgrey); font-size: 17px; }
+.badge span { width: 64px; height: 64px; border-radius: 50%; background: #53604f; color: #0b0f0b; display: grid; place-items: center; font-family: var(--f-head); font-size: 28px; }
+.badge.off span { background: transparent; border: 3px dotted #4e4e4e; color: #4e4e4e; }
+.check { background: #111; border: 2px dotted #4e4e4e; padding: 14px 18px; }
+.check h3 { margin: 0 0 6px; font-family: var(--f-head); font-weight: 400; font-size: 26px; color: var(--gold); letter-spacing: 1px; }
+.check ol { margin: 0; padding-left: 24px; display: grid; gap: 4px; }
+.check .cmd code { background: #000; border: 1px solid #333; }
+.sleep { justify-self: end; background: none; border: 0; border-bottom: 3px dotted var(--rtext); color: var(--rtext); font-family: var(--f-head); font-size: 34px; letter-spacing: 2px; padding: 0 6px; }
+.report a { color: #b9d79c; }
+
+/* title screen */
+.intro .badge span { font-size: 20px; }
+footer.wrap { color: #7c706a; font-size: 17px; padding-block: 0 24px; }
+@media (prefers-reduced-motion: no-preference) {
+  .stamp-mark { animation: thunk .18s steps(3) both; }
+  @keyframes thunk { from { transform: rotate(-8deg) scale(1.6); opacity: 0; } to { transform: rotate(-8deg) scale(1); opacity: .9; } }
+}
+</style>
+</head>
+<body>
+
+<header class="street">
+  <div class="wrap">
+    <div class="sign">
+      <div class="kicker">BEYOND THE MESSAGE · GAME DESIGN FOR SOCIAL CHANGE</div>
+      <h1>Agent Checkpoint</h1>
+      <div class="sub">Your setup guide: get OpenCode running with a free AI model, then let it help you build your game. Read the rulebook, then stamp each request APPROVED or DENIED.</div>
+    </div>
+    <div class="hazard" aria-hidden="true"></div>
+    <div class="tally" aria-live="polite">
+      <div class="chip good">Correct <b id="tGood">0</b></div>
+      <div class="chip bad">Citations <b id="tBad">0</b></div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="wrap"><nav class="days" id="days" aria-label="Days"></nav></div>
+  <div class="wrap booth">
+    <section class="rulebook" aria-label="Rulebook">
+      <div class="rb-tabs" role="tablist" id="rbTabs"></div>
+      <div class="page" id="rbPage"></div>
+    </section>
+    <section class="desk-col" aria-label="Inspection desk">
+      <div class="window">
+        <canvas id="face" width="16" height="16" aria-hidden="true"></canvas>
+        <div class="speech"><div class="who" id="who"></div><div id="says"></div></div>
+      </div>
+      <article class="doc" id="doc" aria-live="polite"></article>
+      <div class="counter">
+        <button class="stamp app" id="btnApp">APPROVED</button>
+        <button class="stamp den" id="btnDen">DENIED</button>
+      </div>
+      <div id="result"></div>
+      <div class="queue" id="queue"></div>
+    </section>
+  </div>
+  <footer class="wrap">Checked against opencode.ai (download page and docs), October 2026. Free models and free tiers change often. When in doubt, the official sites win.</footer>
+</main>
+
+<div class="report" id="report" hidden></div>
+
+<script>
+// ---------------------------------------------------------------- content
+const CMD = (os, c) => `<div class="cmd">${os ? `<span class="os">${os}</span>` : ""}<code>${esc(c)}</code><button class="copy" data-copy="${esc(c)}">COPY</button></div>`;
+function esc(s) { return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;"); }
+
+const HF_JSON = `{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "huggingface": {
+      "type": "remote",
+      "url": "https://huggingface.co/mcp",
+      "enabled": true
+    },
+    "pixellab": {
+      "type": "remote",
+      "url": "https://api.pixellab.ai/mcp",
+      "headers": { "Authorization": "Bearer {env:PIXELLAB_TOKEN}" },
+      "oauth": false,
+      "enabled": false
+    }
+  }
+}`;
+
+const DL = (label, sub, href) => `<a class="dl" href="${href}" target="_blank" rel="noopener"><b>${label}</b><span>${sub}</span></a>`;
+const ASK = (t) => `<div class="ask"><span class="os">ASK OPENCODE</span><p>${esc(t)}</p><button class="copy" data-copy="${esc(t)}">COPY</button></div>`;
+
+const GLOSSARY = ["Words", `<h2>Words you will see</h2>
+  <p><b>OpenCode</b>: an app where you chat with an AI that can read and write the files of your game.</p>
+  <p><b>Project folder</b>: one folder on your computer that holds everything for your game.</p>
+  <p><b>Model</b>: the AI "brain" OpenCode talks to. Some are free.</p>
+  <p><b>Provider</b>: the company that runs a model (NVIDIA, Google…).</p>
+  <p><b>API key</b>: a long secret password from a provider. Treat it like your bank PIN.</p>
+  <p><b>Terminal</b>: a text window for typing commands. With the desktop app you rarely need it.</p>
+  <p><b>MCP</b>: plug-ins that give the AI extra tools, for example an image generator.</p>`];
+
+const DAYS = [
+  {
+    id: "get", name: "GET THE APP", badge: "1",
+    rulebook: [
+      ["Desktop app", `<h2>Step 1 · Download OpenCode</h2>
+        <p>The desktop app is the easiest way. Download the one for your computer from the official site, <b>opencode.ai</b>.</p>
+        <h3>Windows</h3><div class="dls">${DL("Windows", "most laptops (x64)", "https://opencode.ai/download/stable/windows-x64-nsis")}${DL("Windows ARM", "Snapdragon / ARM laptops", "https://opencode.ai/download/stable/windows-aarch64-nsis")}</div>
+        <p>Open the downloaded file and click through the installer.</p>
+        <h3>Mac</h3><div class="dls">${DL("Mac · Apple chip", "M1, M2, M3, M4…", "https://opencode.ai/download/stable/darwin-aarch64-dmg")}${DL("Mac · Intel", "older Macs", "https://opencode.ai/download/stable/darwin-x64-dmg")}</div>
+        <p>Open the .dmg file and drag OpenCode into <b>Applications</b>.</p>
+        <h3>Linux</h3><div class="dls">${DL("Linux .deb", "Ubuntu, Debian", "https://opencode.ai/download/stable/linux-x64-deb")}${DL("Linux .rpm", "Fedora", "https://opencode.ai/download/stable/linux-x64-rpm")}</div>
+        <p>All downloads: <a href="https://opencode.ai/download" target="_blank" rel="noopener">opencode.ai/download</a></p>`],
+      ["Which one?", `<h2>Which computer do I have?</h2>
+        <h3>Mac</h3><p>Click the Apple menu  › <b>About This Mac</b>. Next to <b>Chip</b> it says <b>Apple M…</b> (pick Apple chip) or next to <b>Processor</b> it says <b>Intel</b> (pick Intel).</p>
+        <h3>Windows</h3><p>Open <b>Settings › System › About</b>. Under <b>System type</b>: "x64-based" means Windows, "ARM-based" means Windows ARM.</p>
+        <h3>Mac with Homebrew</h3><p>Already use Homebrew? This installs the same desktop app:</p>${CMD("", "brew install --cask opencode-desktop")}
+        <h3>Prefer the terminal?</h3><p>There is also a terminal version. You do not need it if you use the app.</p>${CMD("MAC/LINUX", "curl -fsSL https://opencode.ai/install | bash")}${CMD("ANY", "npm install -g opencode-ai")}`],
+      ["Rules", `<h2>Inspection rules</h2>
+        <ol><li>Download only from <b>opencode.ai</b>. Not from ads, file-sharing sites or chat messages.</li>
+        <li>Pick the download that matches your computer (see "Which one?").</li>
+        <li>The official terminal package is called <b>opencode-ai</b>. It is not a Python package.</li></ol>`],
+      GLOSSARY,
+    ],
+    cases: [
+      { who: "Student · Windows laptop", says: "I got it from the download page on opencode.ai.", title: "DOWNLOAD", code: "opencode.ai/download › Windows (x64)", ok: true, why: "Official site, right version for a normal Windows laptop." },
+      { who: "Student · MacBook Air M2", says: "I clicked the first Mac button I saw.", title: "DOWNLOAD", code: "Mac · Intel (darwin-x64.dmg)", ok: false, why: "An M2 is an Apple chip. Pick Mac · Apple chip." },
+      { who: "Pop-up ad", says: "OpenCode PRO, free, no limits! Download now!", title: "DOWNLOAD", code: "opencode-pro-free-unlocked.exe  (from fast-dl-files.net)", ok: false, why: "Not opencode.ai. Files from ads can be malware. Download only from the official site." },
+      { who: "Student · Surface Pro (Snapdragon)", says: "Settings says my system type is ARM-based.", title: "DOWNLOAD", code: "Windows ARM (windows-aarch64)", ok: true, why: "ARM-based Windows gets the ARM version." },
+      { who: "Student · iMac (Intel)", says: "About This Mac says Intel Core i5.", title: "DOWNLOAD", code: "Mac · Intel (darwin-x64.dmg)", ok: true, why: "Intel Mac, Intel download." },
+      { who: "Student", says: "I tried installing it like a Python library.", title: "TERMINAL", code: "pip install opencode", ok: false, why: "OpenCode is not a Python package. Use the desktop app (or npm install -g opencode-ai)." },
+    ],
+    checklist: [
+      "Find out which computer you have (Which one? tab).",
+      "Download the matching desktop app from opencode.ai/download.",
+      "Install it, then open OpenCode once to check it starts.",
+    ],
+  },
+  {
+    id: "model", name: "FREE MODEL", badge: "2",
+    rulebook: [
+      ["Free model", `<h2>Step 2 · Give it a free brain</h2>
+        <ol><li>Make a new folder for your game, for example <b>my-game</b> on your Desktop.</li>
+        <li>In OpenCode, open that folder as your project.</li>
+        <li>In the message box, type:</li></ol>${CMD("", "/models")}
+        <ol start="4"><li>Choose <b>DeepSeek V4.1 Flash Free</b>. Its full name is:</li></ol>${CMD("", "opencode/deepseek-v4.1-flash-free")}
+        <ol start="5"><li>Test it. Send this message:</li></ol>${ASK("Hi! Tell me in one sentence which model you are, then list the files in this folder.")}
+        <p>If it answers, you are done with the hard part.</p>
+        <div class="note">Free models in OpenCode are free <b>for a limited time</b> and the list changes. If DeepSeek is gone, pick another model marked <b>free</b>, or use Plan B.</div>`],
+      ["Plan B", `<h2>Plan B · Free accounts</h2>
+        <p>If no free model works, make a free account with a provider, copy its API key, and connect it. Same three steps for every provider:</p>
+        <ol><li>Sign up and create an API key on their site.</li><li>In OpenCode type <b>/connect</b>, search the provider, paste the key in the box that opens.</li><li>Type <b>/models</b> and pick one of their models.</li></ol>
+        <h3>NVIDIA (recommended)</h3><p><a href="https://build.nvidia.com" target="_blank" rel="noopener">build.nvidia.com</a>: sign up, create an API key. Free access to many open models. In /connect choose <b>NVIDIA</b>.</p>
+        <h3>Google Gemini</h3><p><a href="https://aistudio.google.com" target="_blank" rel="noopener">aistudio.google.com</a>: <b>Get API key › Create API key</b>. Has a free tier. In /connect choose <b>Google</b>.</p>
+        <h3>OpenRouter</h3><p><a href="https://openrouter.ai" target="_blank" rel="noopener">openrouter.ai</a>: <b>Keys › Create API Key</b>. Models ending in <b>:free</b> cost nothing. In /connect choose <b>OpenRouter</b>.</p>
+        <h3>Groq</h3><p><a href="https://console.groq.com" target="_blank" rel="noopener">console.groq.com</a>: <b>API Keys › Create API Key</b>. In /connect choose <b>Groq</b>.</p>
+        <div class="note">Free tiers have daily limits and can change. If one runs out, connect another.</div>`],
+      ["Rules", `<h2>Inspection rules</h2>
+        <ol><li>Open your <b>game folder</b> as the project, not Downloads or Desktop itself.</li>
+        <li>API keys go only in the <b>/connect</b> box. Never in a chat message, never in a screenshot.</li>
+        <li>Free models may keep what you send. No names, phone numbers or private interviews.</li>
+        <li>If a model stops answering, switch model with <b>/models</b>. That is normal.</li></ol>`],
+      GLOSSARY,
+    ],
+    cases: [
+      { who: "Student", says: "I typed /models and chose the free DeepSeek.", title: "MODEL", code: "opencode/deepseek-v4.1-flash-free", ok: true, why: "Free model, no account needed while it lasts." },
+      { who: "Student", says: "I opened my whole Downloads folder as the project.", title: "PROJECT", code: "Project: C:\\Users\\me\\Downloads", ok: false, why: "Make one folder just for your game and open that. The AI can read and change files in the project." },
+      { who: "Student", says: "I pasted my NVIDIA key in the chat so it can use it.", title: "CHAT MESSAGE", code: "my key is nvapi-8Hk2...", ok: false, why: "Keys go only in the /connect box. In chat it ends up in history and logs." },
+      { who: "Student", says: "DeepSeek disappeared, so I made a free NVIDIA account.", title: "SESSION", code: "/connect › NVIDIA › (pasted key in the box)\n/models › picked an NVIDIA model", ok: true, why: "Exactly Plan B." },
+      { who: "Student", says: "The free model is good, so I uploaded our interviews with real names.", title: "CHAT MESSAGE", code: "[attached] interviews_full_names.docx", ok: false, why: "Free models may keep data. Remove names and personal details first." },
+      { who: "Student", says: "Google's free tier ran out today, so I switched.", title: "SESSION", code: "/models › picked an OpenRouter model ending in :free", ok: true, why: "Limits run out. Switching model is the fix." },
+    ],
+    checklist: [
+      "Make a folder for your game and open it as your project in OpenCode.",
+      "Type /models and pick DeepSeek V4.1 Flash Free (or another model marked free).",
+      "Send the test message. If nothing works, do Plan B with a free NVIDIA or Google account.",
+    ],
+  },
+  {
+    id: "setup", name: "LET IT HELP", badge: "3",
+    rulebook: [
+      ["Set up", `<h2>Step 3 · Let OpenCode set up the rest</h2>
+        <p>From now on you can ask OpenCode for help in plain words. It can explain, check your computer, and install things. It asks before it runs commands: read what it wants to do, then allow it.</p>
+        <h3>1 · Teach it about your project</h3>${CMD("", "/init")}<p>This writes <b>AGENTS.md</b>, OpenCode's notes about your project. Add your campaign message to it.</p>
+        <h3>2 · Check your computer</h3>${ASK("I am a beginner. I want to make a simple browser game in this folder. Check what I already have installed, tell me what is missing, and explain each step before you run anything.")}
+        <h3>3 · Plan first</h3><p>Press <b>Tab</b> to switch between <b>Plan</b> (it only thinks and suggests) and <b>Build</b> (it changes files). Plan first, Build after you agree.</p>`],
+      ["Prompts", `<h2>A good request</h2>
+        <p>The AI is fast but takes you literally. Tell it:</p>
+        <ol><li><b>The message</b>: what players should discover.</li>
+        <li><b>The one core rule</b> that carries the message.</li>
+        <li><b>The platform</b>: one HTML file that opens in a browser is easiest.</li>
+        <li><b>The smallest version</b> you can play in 2 minutes.</li>
+        <li><b>How to test it</b>: ask it how to run the game.</li></ol>
+        <h3>When something breaks</h3><p>Say what you did, what you expected and what happened. Paste the exact error.</p>${ASK("The game does not start when I open index.html. I expected the title screen. I see a blank page. Please find the problem, explain it simply, and fix it.")}`],
+      ["Builder", `<h2>Prompt builder</h2><p>Fill this in, copy it, and paste it into OpenCode in <b>Plan</b> mode.</p>
+        <div class="form" id="pform">
+          <label for="pEngine">Platform
+            <select id="pEngine">
+              <option value="a single index.html file with JavaScript and an HTML canvas, that opens by double-clicking it">Web: one HTML file (easiest)</option>
+              <option value="a Twine story (Harlowe format) with choices">Twine story</option>
+              <option value="a Unity 2D project (C# scripts), with step-by-step instructions for the Unity editor">Unity 2D</option>
+              <option value="a Godot 4 project (GDScript), with step-by-step instructions for the Godot editor">Godot</option>
+              <option value="a paper prototype: printable cards, a board and a one-page rules sheet">Paper prototype</option>
+            </select></label>
+          <label for="pMsg">Message: by playing, players discover that…
+            <textarea id="pMsg">debt feels harmless when it grows slowly</textarea></label>
+          <label for="pRole">Player role
+            <input id="pRole" value="a student renting their first room"></label>
+          <label for="pRule">The one core rule
+            <input id="pRule" value="every month you can pay rent now or borrow at a small cost"></label>
+          <label for="pTime">Play time
+            <select id="pTime"><option>2 minutes</option><option>5 minutes</option><option>10 minutes</option></select></label>
+        </div>
+        <h3>Your prompt</h3><pre class="json" id="promptOut"></pre><button class="copy" id="copyPrompt" style="padding:6px 12px">COPY PROMPT</button>`],
+      GLOSSARY,
+    ],
+    cases: [
+      { who: "Student", says: "I asked it to look around first.", title: "PROMPT", code: "I am a beginner. Check what I have installed for a browser game and explain each step before you run anything.", ok: true, why: "It checks, explains and asks first. You stay in control." },
+      { who: "Student", says: "Short and simple.", title: "PROMPT", code: "make me a game about climate", ok: false, why: "No message, no rule, no platform. The AI will guess, and its guess will not carry your message." },
+      { who: "Student", says: "It asked to run a command. I did not read it and clicked allow on everything.", title: "SESSION", code: "Allow always: any command", ok: false, why: "Read what it wants to run. If you do not understand it, ask: what does this do?" },
+      { who: "Student", says: "Something is off with the loan.", title: "BUG REPORT", code: "When I click BORROW the debt shows 100, but next month it is still 100. I expected 105. No error shows.", ok: true, why: "What you did, what you expected, what happened. Easy to fix." },
+      { who: "Student", says: "Let's make it amazing right away.", title: "PROMPT", code: "Add 3D, multiplayer, accounts and a leaderboard.", ok: false, why: "Too much at once. One feature at a time, and play-test after each." },
+      { who: "Student", says: "I am in Plan mode.", title: "PROMPT", code: "Plan only. Message: speed pressure makes unsafe riding feel normal. Rule: each second saved adds pay, each red light skipped adds hidden risk. One index.html, 2 minutes. Tell me how to run it.", ok: true, why: "Message, rule, platform, size and a test. Ready to build." },
+    ],
+    checklist: [
+      "Type /init, then add your campaign message to AGENTS.md.",
+      "Paste the computer-check prompt and let it guide you.",
+      "Use the prompt builder in Plan mode, then press Tab and let it build.",
+    ],
+  },
+  {
+    id: "art", name: "ART TOOLS", badge: "4",
+    rulebook: [
+      ["Ask it", `<h2>Step 4 · Let OpenCode add art tools</h2>
+        <p>MCP servers are plug-ins that give OpenCode new tools, like an image generator. You do not have to edit settings files yourself: ask OpenCode to do it.</p>
+        <h3>Free images with Hugging Face</h3>${ASK("Please add the Hugging Face MCP server to this project's opencode.json as a remote server with the URL https://huggingface.co/mcp. Then explain how I sign in and how I check that it works.")}
+        <p>You need a free account at <a href="https://huggingface.co" target="_blank" rel="noopener">huggingface.co</a>. Choose which image tools it may use at <a href="https://huggingface.co/settings/mcp" target="_blank" rel="noopener">huggingface.co/settings/mcp</a>. Restart OpenCode after adding a server.</p>
+        <h3>Pixel art with PixelLab</h3>${ASK("Please add the PixelLab MCP server (remote, https://api.pixellab.ai/mcp) to opencode.json. Read my token from an environment variable called PIXELLAB_TOKEN, never write the token in the file. Explain how I set that variable on my computer.")}
+        <p>PixelLab needs an account at <a href="https://pixellab.ai" target="_blank" rel="noopener">pixellab.ai</a>.</p>`],
+      ["Art workflow", `<h2>Art workflow</h2>
+        <ol><li><b>Rule first, art last.</b> Play-test with coloured boxes. Art cannot fix a rule that argues against your message.</li>
+        <li><b>Write an art guide in AGENTS.md</b>: colours, sprite size (for example 32×32), top-down or side view, mood words.</li>
+        <li><b>Make one main image first.</b> When you like it, ask for more in the same style.</li>
+        <li><b>Keep images in an assets folder</b>, and ask OpenCode to resize them all the same way.</li>
+        <li><b>Turn tools off when you are done.</b> Each one makes the AI slower and costs memory.</li>
+        <li><b>Original art only.</b> No famous characters or logos. Say in your project that you used AI.</li></ol>
+        ${ASK("Read the art guide in AGENTS.md. Make one 32×32 top-down sprite of the main character, save it in assets/sprites/, and show me the file name.")}`],
+      ["Manual", `<h2>For the curious: the settings file</h2>
+        <p>This is what OpenCode writes into <b>opencode.json</b> in your game folder:</p>
+        <pre class="json">${esc(HF_JSON)}</pre><button class="copy" data-copy="${esc(HF_JSON)}" style="padding:6px 12px">COPY CONFIG</button>
+        <p>Useful terminal commands:</p>${CMD("", "opencode mcp list")}${CMD("", "opencode mcp auth huggingface")}
+        <p>Docs: <a href="https://opencode.ai/docs/mcp-servers/" target="_blank" rel="noopener">opencode.ai/docs/mcp-servers</a></p>`],
+      GLOSSARY,
+    ],
+    cases: [
+      { who: "Student", says: "I asked OpenCode to add Hugging Face for me.", title: "PROMPT", code: "Please add the Hugging Face MCP server to opencode.json and explain how I sign in.", ok: true, why: "Let the AI do the setup and explain it." },
+      { who: "Student", says: "I put my token in the file so the team has it on GitHub.", title: "opencode.json", code: `"Authorization": "Bearer pl_live_93hd72k..."`, ok: false, why: "A token in a shared file is a leak. Keep it in an environment variable." },
+      { who: "Student", says: "More tools means a smarter AI, right?", title: "SETTINGS", code: "9 MCP servers, all switched on, all the time", ok: false, why: "Every tool fills the AI's memory. Switch on only what you need today." },
+      { who: "Student", says: "Following our art guide.", title: "PROMPT", code: "Make a 32×32 top-down sprite of a tired courier in the colours from AGENTS.md. Save it to assets/sprites/courier.png.", ok: true, why: "Size, view, colours and file name. Clear." },
+      { who: "Student", says: "Everyone knows him, so players will get it.", title: "PROMPT", code: "Generate a famous cartoon plumber for our main character.", ok: false, why: "Existing characters belong to someone else. Design an original one that fits your message." },
+      { who: "Student", says: "We play-tested with boxes first.", title: "PLAN", code: "1. Boxes until the rule works\n2. Then art", ok: true, why: "Rule first, art last." },
+    ],
+    checklist: [
+      "Play-test with boxes until your core rule works.",
+      "Write a short art guide in AGENTS.md.",
+      "Ask OpenCode to add the Hugging Face MCP server, then restart OpenCode and sign in.",
+      "Make one main image, then ask for matching ones. Turn the tool off when done.",
+    ],
+  },
+];
+
+// ---------------------------------------------------------------- state
+const store = { get() { try { return JSON.parse(localStorage.getItem("agentCheckpoint") || "{}"); } catch { return {}; } }, set(v) { try { localStorage.setItem("agentCheckpoint", JSON.stringify(v)); } catch {} } };
+let S = Object.assign({ day: 0, idx: 0, good: 0, bad: 0, results: {}, done: {}, tab: 0 }, store.get());
+const save = () => store.set(S);
+const $ = (id) => document.getElementById(id);
+
+// ---------------------------------------------------------------- pixel faces
+function drawFace(seed) {
+  const cv = $("face"), x = cv.getContext("2d");
+  let r = seed * 9301 + 49297; const rnd = () => ((r = (r * 9301 + 49297) % 233280) / 233280);
+  const skins = ["#b08a6e", "#8a6448", "#d2a888", "#6e4a33", "#c49a7a"], hairs = ["#2b2321", "#5a3a22", "#8b8b85", "#a0522d", "#1e1b18"], coats = ["#3f4535", "#4a5866", "#5c4737", "#6b2c1d", "#555b6e"];
+  const sk = skins[Math.floor(rnd() * 5)], hr = hairs[Math.floor(rnd() * 5)], ct = coats[Math.floor(rnd() * 5)];
+  x.fillStyle = "#4b3835"; x.fillRect(0, 0, 16, 16);
+  x.fillStyle = ct; x.fillRect(2, 12, 12, 4);
+  x.fillStyle = sk; x.fillRect(4, 4, 8, 8); x.fillRect(6, 11, 4, 2);
+  x.fillStyle = hr; x.fillRect(4, 3, 8, 2); if (rnd() > 0.4) { x.fillRect(3, 4, 1, 5); x.fillRect(12, 4, 1, 5); }
+  if (rnd() > 0.6) { x.fillStyle = "#2b2321"; x.fillRect(3, 2, 10, 2); }
+  x.fillStyle = "#1e1b18"; x.fillRect(6, 7, 1, 1); x.fillRect(9, 7, 1, 1);
+  if (rnd() > 0.5) { x.fillStyle = "#ece8d5"; x.fillRect(5, 6, 3, 2); x.fillRect(8, 6, 3, 2); x.fillStyle = "#1e1b18"; x.fillRect(6, 7, 1, 1); x.fillRect(9, 7, 1, 1); }
+  x.fillStyle = "#7a3a2a"; x.fillRect(7, 10, 2, 1);
+}
+
+// ---------------------------------------------------------------- rendering
+function renderDays() {
+  $("days").innerHTML = `<button class="day-tab" id="btnBrief">BRIEFING</button>` + DAYS.map((d, i) => `<button class="day-tab" data-day="${i}" aria-current="${i === S.day}">DAY ${i + 1} · ${d.name}${S.done[d.id] ? ' <span class="ok">✔</span>' : ""}</button>`).join("");
+}
+function renderRulebook() {
+  const d = DAYS[S.day];
+  if (S.tab >= d.rulebook.length) S.tab = 0;
+  $("rbTabs").innerHTML = d.rulebook.map((t, i) => `<button class="rb-tab" role="tab" aria-selected="${i === S.tab}" data-tab="${i}">${t[0].toUpperCase()}</button>`).join("");
+  $("rbPage").innerHTML = d.rulebook[S.tab][1];
+  if ($("pform")) { $("pform").addEventListener("input", buildPrompt); buildPrompt(); }
+}
+function renderCase() {
+  const d = DAYS[S.day], c = d.cases[S.idx], key = d.id + ":" + S.idx, res = S.results[key];
+  drawFace(S.day * 10 + S.idx + 3);
+  $("who").textContent = c.who; $("says").textContent = "“" + c.says + "”";
+  $("doc").innerHTML = `<div class="doc-head"><span>${c.title}</span><span>No. ${String(S.day + 1).padStart(2, "0")}-${String(S.idx + 1).padStart(2, "0")}</span></div>
+    <div class="claim">Is this correct?</div><pre>${esc(c.code)}</pre>
+    ${res ? `<div class="stamp-mark ${res.choice ? "app" : "den"}">${res.choice ? "APPROVED" : "DENIED"}</div>` : ""}`;
+  $("btnApp").disabled = $("btnDen").disabled = !!res;
+  if (res) {
+    const right = res.choice === c.ok;
+    $("result").innerHTML = `<div class="slip ${right ? "ok" : "cite"}"><strong>${right ? "CORRECT" : "CITATION"}</strong>${esc(c.why)}</div>
+      <div style="display:grid;margin-top:10px"><button class="next" id="btnNext">${S.idx < d.cases.length - 1 ? "NEXT APPLICANT ›" : "END THE DAY ›"}</button></div>`;
+    $("btnNext").onclick = next;
+  } else $("result").innerHTML = "";
+  $("queue").innerHTML = "QUEUE " + d.cases.map((_, i) => { const r = S.results[d.id + ":" + i]; const cls = r ? (r.choice === d.cases[i].ok ? "done" : "miss") : (i === S.idx ? "now" : ""); return `<i class="${cls}" title="Applicant ${i + 1}"></i>`; }).join("");
+  $("tGood").textContent = S.good; $("tBad").textContent = S.bad;
+}
+function renderAll() { renderDays(); renderRulebook(); renderCase(); }
+
+function decide(choice) {
+  const d = DAYS[S.day], key = d.id + ":" + S.idx;
+  if (S.results[key]) return;
+  S.results[key] = { choice };
+  if (choice === d.cases[S.idx].ok) S.good++; else S.bad++;
+  save(); renderCase();
+  $("btnNext") && $("btnNext").focus();
+}
+function next() {
+  const d = DAYS[S.day];
+  if (S.idx < d.cases.length - 1) { S.idx++; save(); renderCase(); return; }
+  S.done[d.id] = true; save(); showReport();
+}
+
+// ---------------------------------------------------------------- end-of-day report
+function showReport() {
+  const d = DAYS[S.day];
+  let good = 0, bad = 0;
+  d.cases.forEach((c, i) => { const r = S.results[d.id + ":" + i]; if (r) (r.choice === c.ok ? good++ : bad++); });
+  const last = S.day === DAYS.length - 1;
+  const r = $("report");
+  r.innerHTML = `<div class="inner wrap">
+    <div class="endof">END OF</div>
+    <div class="plate-row"><div class="plate">DAY ${S.day + 1}</div></div>
+    <p class="lead">${last ? "Your shift is over. You have OpenCode, a free model, and an AI helper that can set up everything else." : "Shift complete. Tomorrow brings new rules."}</p>
+    <div class="ledger">
+      <div><span>CORRECT DECISIONS</span><span>${good}</span></div>
+      <div class="neg"><span>CITATIONS</span><span>-${bad}</span></div>
+      <div class="tot"><span>SKILL: ${d.name}</span><span>${bad === 0 ? "MASTERED" : "LEARNED"}</span></div>
+    </div>
+    <div class="badges">${DAYS.map((x) => `<div class="badge ${S.done[x.id] ? "" : "off"}"><span>${S.done[x.id] ? "OK" : ""}</span>${x.name}</div>`).join("")}</div>
+    <div class="check"><h3>DO THIS FOR REAL</h3><ol>${d.checklist.map((t) => `<li>${esc(t)}</li>`).join("")}</ol></div>
+    ${last ? `<div class="check"><h3>CHEAT SHEET</h3>
+      <p>1 · Download the app: <a href="https://opencode.ai/download" target="_blank" rel="noopener">opencode.ai/download</a></p>
+      ${CMD("PICK MODEL", "/models")}${CMD("FREE MODEL", "opencode/deepseek-v4.1-flash-free")}${CMD("PLAN B KEY", "/connect")}${CMD("PROJECT NOTES", "/init")}
+      <p>Tab switches Plan and Build. Stuck? Ask OpenCode: "I am a beginner, explain this step by step." Official docs: <a href="https://opencode.ai/docs/" target="_blank" rel="noopener">opencode.ai/docs</a> · MCP: <a href="https://opencode.ai/docs/mcp-servers/" target="_blank" rel="noopener">opencode.ai/docs/mcp-servers</a></p></div>` : ""}
+    <button class="sleep" id="btnSleep">${last ? "PLAY AGAIN" : "SLEEP"}</button>
+  </div>`;
+  r.hidden = false; r.scrollTop = 0;
+  $("btnSleep").focus();
+  $("btnSleep").onclick = () => {
+    r.hidden = true;
+    if (last) { S = { day: 0, idx: 0, good: 0, bad: 0, results: {}, done: S.done, tab: 0 }; }
+    else { S.day++; S.idx = 0; S.tab = 0; }
+    save(); renderAll(); window.scrollTo(0, 0);
+  };
+}
+
+// ---------------------------------------------------------------- briefing (first visit)
+function showBriefing() {
+  const r = $("report");
+  r.innerHTML = `<div class="inner wrap">
+    <div class="endof">BEFORE YOUR FIRST SHIFT</div>
+    <div class="plate-row"><div class="plate">BRIEFING</div></div>
+    <p class="lead">You are going to make a small game for your campaign. An AI helper called <b>OpenCode</b> will write most of the code with you. This guide gets it working on your computer, for free.</p>
+    <div class="ledger">
+      <div><span>DAY 1 · GET THE APP</span><span>10 MIN</span></div>
+      <div><span>DAY 2 · FREE MODEL</span><span>10 MIN</span></div>
+      <div><span>DAY 3 · LET IT HELP</span><span>15 MIN</span></div>
+      <div><span>DAY 4 · ART TOOLS</span><span>15 MIN</span></div>
+    </div>
+    <div class="check"><h3>HOW TO PLAY</h3><ol>
+      <li>Read the <b>rulebook</b> on the left. It is also your real instructions: do each step on your own computer.</li>
+      <li>Applicants bring requests. Stamp <b>APPROVED</b> if they follow the rulebook, <b>DENIED</b> if not. Keys: A and D.</li>
+      <li>Wrong stamps give a citation that explains why. No penalty, just learning.</li>
+      <li>The <b>main goal</b> is Day 2: OpenCode answering you with a free model. After that, OpenCode can help you with everything else.</li></ol></div>
+    <div class="check"><h3>YOU NEED</h3><ol><li>A laptop (Windows, Mac or Linux) and internet.</li><li>About an hour. No coding experience.</li></ol></div>
+    <button class="sleep" id="btnStart">START SHIFT</button>
+  </div>`;
+  r.hidden = false; r.scrollTop = 0;
+  $("btnStart").focus();
+  $("btnStart").onclick = () => { r.hidden = true; S.briefed = true; save(); window.scrollTo(0, 0); };
+}
+
+// ---------------------------------------------------------------- prompt builder
+function buildPrompt() {
+  const v = (id) => ($(id) ? $(id).value.trim() : "");
+  const txt = `Plan only, no code yet.
+I am making a short persuasive game for a social-change campaign.
+Message: by playing, players discover that ${v("pMsg")}.
+Player role: ${v("pRole")}.
+Core rule that carries the message: ${v("pRule")}.
+Platform: ${v("pEngine")}.
+Length: about ${v("pTime")} of play.
+Propose the smallest playable version: the player's verbs, what the rules reward and punish, and what the player cannot do.
+Check that the reward loop agrees with the message. Then list the files you will create and tell me how to run and test it.`;
+  if ($("promptOut")) $("promptOut").textContent = txt;
+  const b = $("copyPrompt"); if (b) b.dataset.copy = txt;
+}
+
+// ---------------------------------------------------------------- events
+document.addEventListener("click", async (e) => {
+  const t = e.target.closest("button"); if (!t) return;
+  if (t.id === "btnBrief") { showBriefing(); return; }
+  if (t.dataset.day != null) { S.day = +t.dataset.day; S.idx = 0; S.tab = 0; const d = DAYS[S.day]; while (S.idx < d.cases.length - 1 && S.results[d.id + ":" + S.idx]) S.idx++; save(); renderAll(); return; }
+  if (t.dataset.tab != null) { S.tab = +t.dataset.tab; save(); renderRulebook(); return; }
+  if (t.dataset.copy != null) {
+    const text = t.dataset.copy;
+    try { await navigator.clipboard.writeText(text); t.textContent = "COPIED"; t.classList.add("done"); }
+    catch { const code = t.parentElement.querySelector("code") || t.previousElementSibling; if (code) { const rg = document.createRange(); rg.selectNodeContents(code); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(rg); } t.textContent = "SELECTED"; }
+    setTimeout(() => { t.textContent = t.id === "copyPrompt" ? "COPY PROMPT" : (text.startsWith("{") ? "COPY CONFIG" : "COPY"); t.classList.remove("done"); }, 1600);
+  }
+});
+$("btnApp").onclick = () => decide(true);
+$("btnDen").onclick = () => decide(false);
+document.addEventListener("keydown", (e) => {
+  if (!$("report").hidden || /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) return;
+  if (e.key === "a" || e.key === "A") $("btnApp").disabled || decide(true);
+  if (e.key === "d" || e.key === "D") $("btnDen").disabled || decide(false);
+});
+renderAll();
+if (!S.briefed) showBriefing();
+</script>
+
+</body>
+</html>
